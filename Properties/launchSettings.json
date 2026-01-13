@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SKOrchestrationPractice": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
