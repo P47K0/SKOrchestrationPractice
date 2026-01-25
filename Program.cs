@@ -128,7 +128,7 @@ DO NOT add more letters to Guessed, pass the result from GuessLetter() EXACTLY
 Please respond clearly and concisely without <tool_call> 
 ";
         private const string ModelId = "qwen2.5:32b-instruct-q4_K_M";
-        private const string SqlitePath = "c:/temp/hangman_vectors.db";
+        public const string SqlitePath = "c:/temp/hangman_vectors.db";
 
         static async Task Main(string[] args)
         {

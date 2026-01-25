@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using HangmanAgents;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel.Connectors.SqliteVec;
 using System.Text.Json;
@@ -102,8 +103,8 @@ internal static class SqliteCollectionExtension
     {
         var serializedJson = JsonSerializer.Serialize(record);
 
-        string connectionString = "c:/temp/hangman_vectors.db";
-        using var insertConn = new SqliteConnection($"Data Source={connectionString}");
+        string connectionString = $"Data Source={Program.SqlitePath}";
+        using var insertConn = new SqliteConnection(connectionString);
         insertConn.Open();
 
         using var transaction = insertConn.BeginTransaction();
@@ -120,8 +121,7 @@ internal static class SqliteCollectionExtension
         insertCmd.Parameters.AddWithValue("@language", record.Language ?? "");
         insertCmd.Parameters.AddWithValue("@category", record.Category ?? "");
         insertCmd.Parameters.AddWithValue("@length", record.Length);
-
-        var insertedCount = insertCmd.ExecuteNonQuery();
+        insertCmd.ExecuteNonQuery();
 
         byte[] vectorBytes = record.Embedding.ToArray()
         .SelectMany(f => BitConverter.GetBytes(f))
@@ -137,10 +137,6 @@ internal static class SqliteCollectionExtension
         vecCmd.Parameters.AddWithValue("@embedding", vectorBytes);
 
         vecCmd.ExecuteNonQuery();
-
-        var chunkCmd2 = insertConn.CreateCommand();
-        chunkCmd2.CommandText = @"SELECT count(*) FROM vec_words;";
-        var res = await chunkCmd2.ExecuteReaderAsync();
 
         transaction.Commit();
 

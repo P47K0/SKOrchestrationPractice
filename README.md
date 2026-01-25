@@ -62,9 +62,10 @@ The official `UpsertAsync` method in `SqliteVecVectorStore` (and other preview c
 
 ### Code snippet (simplified manual upsert)
 ```csharp
-internal static void ManualUpsert(this SqliteCollection<int, HangmanWordRecord> source, HangmanWordRecord record)
+internal static void UpsertWorkaround(this SqliteCollection<int, HangmanWordRecord> source, HangmanWordRecord record)
 {
-    using var conn = new SqliteConnection("Data Source=c:/temp/hangman_vectors.db");
+    string connectionString = $"Data Source={Program.SqlitePath}";
+    using var insertConn = new SqliteConnection(connectionString);
     conn.Open();
 
     // Metadata
@@ -84,7 +85,7 @@ internal static void ManualUpsert(this SqliteCollection<int, HangmanWordRecord> 
     // Vector (BLOB)
     var vecCmd = conn.CreateCommand();
     vecCmd.CommandText = @"
-        INSERT OR REPLACE INTO vec_words (id, embedding)
+        INSERT OR REPLACE INTO vec_words (key, embedding)
         VALUES (@id, @embedding)
     ";
     var vectorBytes = record.Embedding.ToArray()
