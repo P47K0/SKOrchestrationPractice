@@ -1,0 +1,47 @@
+{
+  "collectionName": "word_embeddings",
+  "records": [
+    {
+      "key": 1,
+      "word": "apple",
+      "category": "fruit",
+      "language": "en"
+    },
+    {
+      "key": 2,
+      "word": "grape",
+      "category": "food,fruit",
+      "language": "en"
+    },
+    {
+      "key": 3,
+      "word": "lemon",
+      "category": "food,fruit",
+      "language": "en"
+    },
+    {
+      "key": 4,
+      "word": "agent",
+      "category": "ai",
+      "language": "en"
+    },
+    {
+      "key": 5,
+      "word": "grapefruit",
+      "category": "food,fruit",
+      "language": "en"
+    },
+    {
+      "key": 6,
+      "word": "bread",
+      "category": "food",
+      "language": "en"
+    },
+    {
+      "key": 7,
+      "word": "berry",
+      "category": "food,fruit",
+      "language": "en"
+    }
+  ]
+}

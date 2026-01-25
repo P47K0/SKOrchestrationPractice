@@ -1,8 +1,12 @@
-﻿using Microsoft.SemanticKernel;
+﻿using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.VectorData;
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Agents.Chat;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel.Connectors.SqliteVec;
+using SKOrchestrationPractice;
 using System.ComponentModel;
 using System.Diagnostics;
 
@@ -13,20 +17,34 @@ using System.Diagnostics;
 public class HangmanGamePlugin
 {
     private string _secretWord = "";
-    private char[] _Word = [];
+    private char[] _word = [];
     private readonly HashSet<char> _guessed = [];
     private int _wrongs = 0;
     private const int MaxWrongs = 6;
+    private const string QueryTextForWordsPool = "fruit";
+    private const string JsonFilePathWordsFile = "words.json";
+
+    async private Task Init(SqliteVectorStore vectorStore)
+    {
+        var searchOptions = new VectorSearchOptions<HangmanWordRecord>
+        {
+            Filter = r => r.Length == 5, // Only 5 letter words
+            Skip = 0,
+            IncludeVectors = false
+        };
+
+        var words = await vectorStore.GetWordsAsync(JsonFilePathWordsFile, searchOptions, new Embedder(), QueryTextForWordsPool) ?? ["empty"];
+        _secretWord = words[Random.Shared.Next(words.Length)].ToLower();
+        _word = Enumerable.Repeat('_', _secretWord.Length).ToArray();
+    }
 
     [KernelFunction, Description("Do not call this, the game is already started")]
-    public string StartNewGame()
+    async public Task<string> StartNewGame(SqliteVectorStore vectorStore)
     {
-        var words = new[] { "test", "hang", "four", "exam", "grok", "code", "game" };
-        _secretWord = words[Random.Shared.Next(words.Length)].ToLower();
-        _Word = Enumerable.Repeat('_', _secretWord.Length).ToArray();
+        await Init(vectorStore);
         _guessed.Clear();
         _wrongs = 0;
-        var result = $"New game started! Word has {_secretWord.Length} letters: {string.Join(' ', _Word)}";
+        var result = $"New game started! Word has {_secretWord.Length} letters: {string.Join(' ', _word)}";
         Console.WriteLine($"[DEBUG] StartNewGame -> {result}");
         return result;
     }
@@ -42,8 +60,8 @@ public class HangmanGamePlugin
         if (_secretWord.Contains(c))
         {
             for (int i = 0; i < _secretWord.Length; i++)
-                if (_secretWord[i] == c) _Word[i] = c;
-            if (!_Word.Contains('_'))
+                if (_secretWord[i] == c) _word[i] = c;
+            if (!_word.Contains('_'))
             {
                 var winMsg = $"Correct! The word was '{_secretWord}'. You win!";
                 //Console.WriteLine($"[DEBUG] {winMsg}");
@@ -59,11 +77,11 @@ public class HangmanGamePlugin
                 //Console.WriteLine($"[DEBUG] {loseMsg}");
                 return loseMsg;
             }
-            var result0 = $"Word: {string.Join(' ', _Word)} | Guessed: {string.Join(",", _guessed)} | Wrongs: {_wrongs}/{MaxWrongs}";
+            var result0 = $"Word: {string.Join(' ', _word)} | Guessed: {string.Join(",", _guessed)} | Wrongs: {_wrongs}/{MaxWrongs}";
             //Console.WriteLine($"[DEBUG] GuessLetter result -> {result0}");
             return result0;
         }
-        var result = $"Word: {string.Join(' ', _Word)} | Guessed: {string.Join(",", _guessed)} | Wrongs: {_wrongs}/{MaxWrongs}";
+        var result = $"Word: {string.Join(' ', _word)} | Guessed: {string.Join(",", _guessed)} | Wrongs: {_wrongs}/{MaxWrongs}";
         //Console.WriteLine($"[DEBUG] GuessLetter result -> {result}");
         return result;
     }
@@ -71,7 +89,7 @@ public class HangmanGamePlugin
     [KernelFunction, Description("ONLY use this to check the current game board, guessed letters, and wrongs. Do NOT invent other state functions.")]
     public string GetGameState()
     {
-        var state = $"Word: {string.Join(' ', _Word)} | Guessed: {string.Join(",", _guessed)} | Wrongs: {_wrongs}/{MaxWrongs}";
+        var state = $"Word: {string.Join(' ', _word)} | Guessed: {string.Join(",", _guessed)} | Wrongs: {_wrongs}/{MaxWrongs}";
         //Console.WriteLine($"[DEBUG] GetGameState -> {state}");
         return state;
     }
@@ -110,15 +128,17 @@ DO NOT add more letters to Guessed, pass the result from GuessLetter() EXACTLY
 Please respond clearly and concisely without <tool_call> 
 ";
         private const string ModelId = "qwen2.5:32b-instruct-q4_K_M";
-
+        private const string SqlitePath = "c:/temp/hangman_vectors.db";
 
         static async Task Main(string[] args)
         {
+            InitDatabase(out SqliteVectorStore vectorStore, out SqliteConnection conn);
+
             var swKernel = Stopwatch.StartNew();
             var builder = Kernel.CreateBuilder();
             builder.AddOllamaChatCompletion(
                 modelId: ModelId,
-                endpoint: new Uri("http://localhost:11434") 
+                endpoint: new Uri("http://localhost:11434")
             );
 
             var kernel = builder.Build();
@@ -126,7 +146,7 @@ Please respond clearly and concisely without <tool_call>
             Console.WriteLine($"Kernel build time: {swKernel.ElapsedMilliseconds} ms");
 
             HangmanGamePlugin game = new();
-            game.StartNewGame();
+            await game.StartNewGame(vectorStore);
             kernel.ImportPluginFromObject(game);
 
             var executionSettings = new OpenAIPromptExecutionSettings
@@ -144,7 +164,7 @@ Please respond clearly and concisely without <tool_call>
                                                                          true,
                                                                          new FunctionChoiceBehaviorOptions { AllowStrictSchemaAdherence = true }),
                 Temperature = 0,
-                MaxTokens = 50,               
+                MaxTokens = 50,
             };
 
             var agentA = new ChatCompletionAgent
@@ -196,10 +216,54 @@ Please respond clearly and concisely without <tool_call>
                     continue;
                 }
 
-                Console.WriteLine($"[{message.AuthorName}] -> '{message.Content}'"); 
+                Console.WriteLine($"[{message.AuthorName}] -> '{message.Content}'");
             }
-                        
+
             Console.WriteLine("Game over!");
+        }
+
+        private static void InitDatabase(out SqliteVectorStore vectorStore, out SqliteConnection conn)
+        {
+            string connectionString = $"Data Source={SqlitePath}";
+
+            if (File.Exists(SqlitePath)) File.Delete(SqlitePath);
+
+            vectorStore = new SqliteVectorStore(connectionString);
+            conn = new SqliteConnection(connectionString);
+            conn.Open();
+
+            conn.EnableExtensions(true);
+
+            conn.LoadExtension("extensions/vec0.dll");
+
+            // 1. Metadata table (for Word, Hint, Category, Length serialized as JSON)
+            var cmdMetadata = conn.CreateCommand();
+            cmdMetadata.CommandText = @"
+CREATE TABLE IF NOT EXISTS words (
+    key INTEGER PRIMARY KEY,
+    json TEXT NOT NULL,
+    word TEXT,
+    language TEXT,
+    category TEXT,
+    length INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_words_length ON words(length);
+CREATE INDEX IF NOT EXISTS idx_words_word ON words(word);
+";
+            cmdMetadata.ExecuteNonQuery();
+
+            // 2. Vector virtual table (sqlite-vec style, column named 'embedding')
+            var cmdVec = conn.CreateCommand();
+            cmdVec.CommandText = @"
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_words USING vec0(
+    key INTEGER PRIMARY KEY AUTOINCREMENT,
+    embedding FLOAT[768]
+);
+";
+            cmdVec.ExecuteNonQuery();
+
+            conn.Close();
         }
     }
 
