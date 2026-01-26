@@ -43,7 +43,9 @@ The word pool is now retreived via local RAG. The words (in words.json) are plac
 The path of the SqliteDb can be set in Program.cs: SqlitePath it is currently set to 'c:/temp/hangman_vectors.db' (will move all settings to appsettings later)
 Currently the first 4 fruits with 5 letters are fetched.
 In order to do create the vectors, it is needed to deploy an embeddings model. I tested it with nomic-embed-text, you have to do:
-`ollama pull nomic-embed-text`
+```
+ollama pull nomic-embed-text
+```
 
 ## Workaround for Semantic Kernel vector store preview bugs
 
@@ -52,13 +54,12 @@ The official `UpsertAsync` method in `SqliteVecVectorStore` (and other preview c
 ### Root issues encountered
 - InMemoryVectorStore: "Collection does not exist" despite `GetCollection` + dummy upsert
 - SqliteVectorStore: NOT NULL constraint failed on `json` column during upsert
-- SqliteVec: Vector chunks never populated (extension loaded, `vec_version()` worked, but inserts skipped)
 
 ### Solution: Manual raw-SQL upsert + connector search
 - Metadata (key, json, word, category, language, length) inserted via raw `INSERT OR REPLACE` into `words` table
 - Vector inserted manually into `vec_words` virtual table (or chunks) using BLOB parameter
 - Search still uses `VectorizedSearchAsync` (once chunks are populated)
-- Post-filter on `Category.Contains("fruit")` + `Length == 5` to guarantee relevant fruits
+- Post-filter on `Length == 5` and query text set to 'fruits' to only get 5 letter fruits
 
 ### Code snippet (simplified manual upsert)
 ```csharp
