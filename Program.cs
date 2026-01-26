@@ -231,9 +231,7 @@ Please respond clearly and concisely without <tool_call>
             vectorStore = new SqliteVectorStore(connectionString);
             conn = new SqliteConnection(connectionString);
             conn.Open();
-
             conn.EnableExtensions(true);
-
             conn.LoadExtension("extensions/vec0.dll");
 
             // 1. Metadata table (for Word, Hint, Category, Length serialized as JSON)

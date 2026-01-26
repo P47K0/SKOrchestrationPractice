@@ -97,3 +97,51 @@ internal static void UpsertWorkaround(this SqliteCollection<int, HangmanWordReco
 
     conn.Close();
 }
+
+## Dependencies and Setup Notes
+
+### SQLite vec0 Extension (Vector Search)
+
+This project uses the experimental [sqlite-vec](https://github.com/asg017/sqlite-vec) extension (v0.x alpha series) for vector similarity search in SQLite.
+
+- The Windows x64 native library `vec0.dll` is **included directly in the repository**.
+- It is added to the project with:
+  - Build Action: None
+  - Copy to Output Directory: Copy always
+
+This ensures the DLL ends up in the output folder (`bin/Debug/net8.0/` or similar) and is available at runtime.
+
+The extension is loaded explicitly in code:
+
+```csharp
+connection.EnableExtensions(true);
+connection.LoadExtension("extensions/vec0.dll");
+
+**Platform notes**
+- Works out-of-the-box on Windows x64.
+- On Linux/macOS/other platforms, the bundled Windows vec0.dll will not work. Replace it with the appropriate native file:
+1. Go to the release page [releases](https://github.com/asg017/sqlite-vec/releases)
+   I used this release: [v0.1.7-alpha.2](https://github.com/asg017/sqlite-vec/releases/tag/v0.1.7-alpha.2)
+2. Download the appropriate precompiled loadable extension (many platform-specific assets are available, e.g., vec0.so for Linux, vec0.dylib for macOS).
+3. Place it in the output directory.
+4. Update the LoadExtension call if the filename differs (e.g., "vec0.so").
+
+**About the official Semantic Kernel SqliteVec connector**
+A prerelease connector exists:
+`dotnet add package Microsoft.SemanticKernel.Connectors.SqliteVec --prerelease`
+It provides a higher-level vector store abstraction and depends on a separate sqlite-vec NuGet package that attempts to supply native assets.However, as of January 2026, real-world usage often still requires the native extension file (vec0.dll on Windows) to be present in the executable directory for reliable loading—similar issues to the manual approach can occur.
+For maximum reliability and explicit control (especially in a small project like this Hangman demo), the direct/manual method is used here. Switching to the official connector is possible in the future once the native handling stabilizes across platforms.
+
+**License for the Bundled vec0.dll**
+The precompiled vec0.dll included in this repository is from the sqlite-vec project and is dual-licensed under:
+- MIT License
+- Apache License 2.0
+
+Both are permissive licenses that allow use, modification, and redistribution (including binaries) with minimal requirements (primarily preserving copyright notices and license text).
+You may comply with either license.
+Full license texts are available in the upstream repository:
+- [LICENSE-MIT](https://github.com/asg017/sqlite-vec/blob/main/LICENSE-MIT)
+- [LICENSE-APACHE](https://github.com/asg017/sqlite-vec/blob/main/LICENSE-APACHE)
+
+(No additional license obligations are imposed by bundling the binary here beyond those in the original licenses.)
+
