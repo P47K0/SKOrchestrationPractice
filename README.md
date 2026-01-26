@@ -97,7 +97,7 @@ internal static void UpsertWorkaround(this SqliteCollection<int, HangmanWordReco
 
     conn.Close();
 }
-
+```
 ## Dependencies and Setup Notes
 
 ### SQLite vec0 Extension (Vector Search)
@@ -116,6 +116,7 @@ The extension is loaded explicitly in code:
 ```csharp
 connection.EnableExtensions(true);
 connection.LoadExtension("extensions/vec0.dll");
+```
 
 **Platform notes**
 - Works out-of-the-box on Windows x64.
