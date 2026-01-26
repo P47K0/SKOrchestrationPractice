@@ -97,7 +97,7 @@ internal static void UpsertWorkaround(this SqliteCollection<int, HangmanWordReco
 
     conn.Close();
 }
-
+```
 ## Dependencies and Setup Notes
 
 ### SQLite vec0 Extension (Vector Search)
